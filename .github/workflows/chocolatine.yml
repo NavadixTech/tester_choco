@@ -79,12 +79,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Debug Remote URL
-        run: git remote -v
-
-      - name: Force Push if needed
-        run: |
-          git branch
-          git remote add mirror ${{ env.MIRROR_URL }}
-          git fetch mirror main || echo "No main branch on remote yet"
-          git push --force mirror main
+      - name: Mirror Repository
+        uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url: ${{ env.MIRROR_URL }}
+          ssh_private_key: ${{ secrets.SSH_SECRET_KEY }}
