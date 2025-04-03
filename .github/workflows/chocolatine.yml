@@ -79,30 +79,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Vérifier si la branche est protégée
+      - name: Configurer SSH
         run: |
-          PROTECTED=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/EpitechPGEPromo2029/B-DOP-200-MLN-2-1-chocolatine-sacha.lamour/branches/main | jq -r '.protected')
-          
-          if [ "$PROTECTED" == "true" ]; then
-            echo "La branche main est protégée, un push direct est impossible."
-            exit 1
-          fi
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Vérifier accès au dépôt distant
+        run: |
+          ssh -i ~/.ssh/id_rsa -T git@github.com || exit 1
 
       - name: Configurer le dépôt distant
         run: |
-          git remote add mirror https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/EpitechPGEPromo2029/B-DOP-200-MLN-2-1-chocolatine-sacha.lamour.git
+          git remote add mirror "${{ env.MIRROR_URL }}"
           git fetch mirror main || echo "Pas de branche main existante sur le repo distant"
 
       - name: Push sécurisé vers le miroir
         run: |
           git push mirror main || (echo "Tentative de push forcé sur repo vide..." && git push --force mirror main)
-
-      - name: Créer une Pull Request si la branche est protégée
-        if: failure()
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          branch: main
-          title: "Automated Sync - Chocolatine CI"
