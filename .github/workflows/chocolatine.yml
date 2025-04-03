@@ -79,25 +79,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configurer SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_SECRET_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-
-      - name: Vérifier accès au dépôt distant
-        run: |
-          ssh -i ~/.ssh/id_rsa -T git@github.com || exit 1
-
-      - name: Configurer le dépôt distant
-        run: |
-          git remote add mirror "${{ env.MIRROR_URL }}"
-          git fetch mirror main || echo "Pas de branche main existante sur le repo distant"
-
-      - name: Push sécurisé vers le miroir
-        run: |
-          git push mirror main || (echo "Tentative de push forcé sur repo vide..." && git push --force mirror main)
+      - name: Mirror Repository
+        uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url: ${{ env.MIRROR_URL }}
+          ssh_private_key: ${{ secrets.SSH_SECRET_KEY }}
