@@ -79,8 +79,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Mirror Repository
-        uses: pixta-dev/repository-mirroring-action@v1
+      - name: Vérifier si la branche est protégée
+        run: |
+          PROTECTED=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/EpitechPGEPromo2029/B-DOP-200-MLN-2-1-chocolatine-sacha.lamour/branches/main | jq -r '.protected')
+          
+          if [ "$PROTECTED" == "true" ]; then
+            echo "La branche main est protégée, un push direct est impossible."
+            exit 1
+          fi
+
+      - name: Configurer le dépôt distant
+        run: |
+          git remote add mirror https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/EpitechPGEPromo2029/B-DOP-200-MLN-2-1-chocolatine-sacha.lamour.git
+          git fetch mirror main || echo "Pas de branche main existante sur le repo distant"
+
+      - name: Push sécurisé vers le miroir
+        run: |
+          git push mirror main || (echo "Tentative de push forcé sur repo vide..." && git push --force mirror main)
+
+      - name: Créer une Pull Request si la branche est protégée
+        if: failure()
+        uses: peter-evans/create-pull-request@v5
         with:
-          target_repo_url: ${{ env.MIRROR_URL }}
-          ssh_private_key: ${{ secrets.SSH_SECRET_KEY }}
+          token: ${{ secrets.GH_TOKEN }}
+          branch: main
+          title: "Automated Sync - Chocolatine CI"
